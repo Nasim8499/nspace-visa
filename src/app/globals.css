@@ -1,0 +1,189 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0b0f1a;
+  --color-cream: #faf8f4;
+  --color-brand: #2f5bff;
+  --color-brand-dark: #1e3fd1;
+  --color-sun: #ffcf3f;
+  --color-mint: #12b886;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-fade-up: fade-up 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-marquee: marquee 40s linear infinite;
+  --animate-pulse-ring: pulse-ring 2s ease-out infinite;
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  @keyframes pulse-ring {
+    0% { transform: scale(0.6); opacity: 0.9; }
+    100% { transform: scale(2.4); opacity: 0; }
+  }
+}
+
+html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+body {
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+@media (max-width: 767px) {
+  body { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+.reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.7s ease, transform 0.7s ease; }
+.reveal.in { opacity: 1; transform: none; }
+
+.input {
+  width: 100%;
+  border-radius: 0.9rem;
+  border: 1px solid #e3e0d8;
+  background: #fff;
+  padding: 0.8rem 1rem;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input:focus { border-color: var(--color-brand); box-shadow: 0 0 0 4px rgba(47, 91, 255, 0.12); }
+.label { display: block; font-size: 0.78rem; font-weight: 600; color: #5b6070; margin-bottom: 0.35rem; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  border-radius: 999px; padding: 0.8rem 1.4rem; font-weight: 600; font-size: 0.95rem;
+  transition: transform 0.15s, background 0.15s, box-shadow 0.15s; cursor: pointer;
+}
+.btn:active { transform: scale(0.97); }
+.btn-ink { background: var(--color-ink); color: #fff; }
+.btn-ink:hover { background: #1c2233; }
+.btn-brand { background: var(--color-brand); color: #fff; box-shadow: 0 8px 24px -8px rgba(47, 91, 255, 0.6); }
+.btn-brand:hover { background: var(--color-brand-dark); }
+.btn-ghost { background: #fff; border: 1px solid #e3e0d8; color: var(--color-ink); }
+.btn-ghost:hover { background: #f3f1ea; }
+.btn[disabled] { opacity: 0.55; pointer-events: none; }
+
+.card { background: #fff; border: 1px solid #ece9e1; border-radius: 1.5rem; }
+
+/* ---------- Apple liquid glass ---------- */
+/* One paint, four layers: top specular sheen, body tint, hairline edge light,
+   and a soft coloured bloom. No pseudo-elements, so content never paints under
+   the highlight and Safari keeps it on the fast path. */
+.glass {
+  position: relative;
+  background:
+    linear-gradient(158deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.55) 42%, rgba(255, 255, 255, 0) 62%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, rgba(250, 252, 255, 0.7) 100%);
+  -webkit-backdrop-filter: blur(26px) saturate(190%);
+  backdrop-filter: blur(26px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.45),
+    0 1px 1px rgba(15, 23, 42, 0.04),
+    0 20px 44px -26px rgba(15, 23, 42, 0.3),
+    0 44px 90px -70px rgba(47, 91, 255, 0.45);
+}
+.glass-soft {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.5) 100%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  backdrop-filter: blur(20px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 12px 30px -22px rgba(15, 23, 42, 0.28);
+}
+
+/* light sweep across a card on hover */
+.sheen {
+  position: relative;
+  overflow: hidden;
+}
+.sheen::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -140%;
+  width: 55%;
+  height: 200%;
+  background: linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, 0.6) 45%, transparent 100%);
+  transform: rotate(9deg);
+  transition: left 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+.sheen:hover::after,
+.sheen:focus-within::after {
+  left: 150%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheen::after { transition: none; }
+  html { scroll-behavior: auto; }
+}
+
+/* ---------- hero aurora ---------- */
+.aurora {
+  position: absolute;
+  inset: -18% -12% auto -12%;
+  height: 130%;
+  pointer-events: none;
+  overflow: hidden;
+  filter: blur(54px);
+  opacity: 0.75;
+  z-index: 0;
+}
+.aurora span {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform;
+  animation: drift 22s ease-in-out infinite;
+}
+.aurora span:nth-child(1) {
+  left: 8%;
+  top: 6%;
+  width: 46vmax;
+  height: 46vmax;
+  background: radial-gradient(circle, rgba(47, 91, 255, 0.3) 0%, rgba(47, 91, 255, 0) 68%);
+}
+.aurora span:nth-child(2) {
+  right: 4%;
+  top: 18%;
+  width: 40vmax;
+  height: 40vmax;
+  background: radial-gradient(circle, rgba(255, 207, 63, 0.34) 0%, rgba(255, 207, 63, 0) 66%);
+  animation-duration: 26s;
+  animation-direction: reverse;
+}
+.aurora span:nth-child(3) {
+  left: 38%;
+  bottom: -18%;
+  width: 44vmax;
+  height: 44vmax;
+  background: radial-gradient(circle, rgba(122, 92, 255, 0.26) 0%, rgba(122, 92, 255, 0) 68%);
+  animation-duration: 31s;
+}
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(4%, -6%, 0) scale(1.1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aurora span { animation: none; }
+}
