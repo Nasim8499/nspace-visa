@@ -7,14 +7,19 @@ import s from "./careers.module.css";
 
 /* ---------- content ---------- */
 
+/* Seven fixed beats, each holding the screen for ~2.7 viewports of scroll —
+   the pacing careers.atlys.com uses, so every line has room to arrive. */
 const BEATS = [
-  { key: "hero", label: "First light", from: 0, to: 0.15 },
-  { key: "mission", label: "Mission", from: 0.15, to: 0.32 },
-  { key: "world", label: "Reach", from: 0.32, to: 0.58 },
-  { key: "values", label: "Values", from: 0.58, to: 0.76 },
-  { key: "roles", label: "Roles", from: 0.76, to: 0.93 },
-  { key: "finale", label: "Take the lift", from: 0.93, to: 1.0001 },
+  { key: "hero", label: "First light" },
+  { key: "mission", label: "Mission" },
+  { key: "story", label: "2021" },
+  { key: "runway", label: "Numbers" },
+  { key: "orbit", label: "Reach" },
+  { key: "values", label: "Values" },
+  { key: "finale", label: "Open roles" },
 ] as const;
+
+const SPAN = 1 / BEATS.length;
 
 const VALUES: [string, string][] = [
   ["Treat The Customer Like Your Date", "Care enough to impress them. Don’t hide behind process."],
@@ -44,11 +49,15 @@ const DEPTS: [string, number][] = [
   ["Product", 2],
 ];
 
-const STATS: [string, string][] = [
-  ["2021", "Founded"],
-  ["45+", "Destinations"],
-  ["24×7", "Human support"],
-  ["On time", "Or fee refunded"],
+const RUNWAY: [number, string, string][] = [
+  [2021, "", "Founded"],
+  [45, "+", "Destinations"],
+  [24, "×7", "Human support"],
+];
+
+const ORBIT: [string, string][] = [
+  ["99.2%", "On-time delivery"],
+  ["24h", "Median approval"],
 ];
 
 /* world map: equirectangular, same projection the app already uses */
@@ -78,21 +87,23 @@ export function CareersJourney() {
   const wrap = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const beatEls = useRef<(HTMLDivElement | null)[]>([]);
-  const valueEls = useRef<(HTMLDivElement | null)[]>([]);
-  const roleEls = useRef<(HTMLAnchorElement | null)[]>([]);
+  const revealEls = useRef<HTMLElement[][]>([]);
+  const countEls = useRef<HTMLElement[]>([]);
   const pinEls = useRef<(SVGGElement | null)[]>([]);
-  const finaleEl = useRef<HTMLDivElement>(null);
   const worldEl = useRef<HTMLDivElement>(null);
   const progressEl = useRef<HTMLDivElement>(null);
   const countEl = useRef<HTMLSpanElement>(null);
-  const statEls = useRef<(HTMLElement | null)[]>([]);
   const railEls = useRef<(HTMLDivElement | null)[]>([]);
 
   const [isStatic, setIsStatic] = useState(false);
   const [liveBeat, setLiveBeat] = useState(0);
 
-  const words = useMemo(
-    () => ["Your", "journey", "to", "a", "more", "open", "world", "starts", "here."],
+  const heroLines = useMemo(
+    () => [
+      [<em key="j">journey</em>, " "],
+      ["to a more open world"],
+      ["starts here."],
+    ],
     [],
   );
 
@@ -101,6 +112,16 @@ export function CareersJourney() {
     if (typeof window === "undefined") return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setIsStatic(true);
   }, []);
+
+  /* collect the reveal targets once the markup exists */
+  useEffect(() => {
+    revealEls.current = beatEls.current.map((el) =>
+      el ? (Array.from(el.querySelectorAll<HTMLElement>("[data-reveal]")) as HTMLElement[]) : [],
+    );
+    countEls.current = Array.from(
+      stage.current?.querySelectorAll<HTMLElement>("[data-count]") ?? [],
+    );
+  }, [isStatic]);
 
   /* the scroll engine */
   useEffect(() => {
@@ -120,33 +141,75 @@ export function CareersJourney() {
     };
 
     const apply = (p: number) => {
-      /* progress bar */
       if (progressEl.current) progressEl.current.style.width = `${(p * 100).toFixed(2)}%`;
 
       let activeBeat = 0;
       const locals: number[] = [];
 
-      BEATS.forEach((b, i) => {
-        const t = (p - b.from) / (b.to - b.from);
+      BEATS.forEach((_, i) => {
+        const from = i * SPAN;
+        const t = (p - from) / SPAN;
         locals[i] = t;
         const el = beatEls.current[i];
-        if (t > 0.04 && t < 0.96) activeBeat = i;
+        if (t > 0.02 && t < 0.98) activeBeat = i;
+        if (i === BEATS.length - 1 && t >= 0.02) activeBeat = i;
         if (!el) return;
-        if (t <= -0.02 || t >= 1.02) {
+
+        /* every beat is on screen for its whole slice, cross-fading only at the
+           joins, so the page never blinks between scenes */
+        if (t <= -0.06 || t >= 1.06) {
           el.style.opacity = "0";
           el.style.pointerEvents = "none";
           el.dataset.live = "0";
           return;
         }
-        const inT = i === 0 ? 1 : easeOut(clamp(t / 0.16));
-        const outT = easeInOut(clamp((t - 0.84) / 0.16));
+        const inT = i === 0 ? 1 : easeOut(clamp((t + 0.06) / 0.16));
+        /* the last beat stays put at the end of the page instead of fading away */
+        const outT = i === BEATS.length - 1 ? 0 : easeInOut(clamp((t - 0.9) / 0.14));
         const opacity = clamp(inT - outT);
-        const y = (1 - inT) * 44 - outT * 46;
-        const scale = 1 - outT * 0.045;
         el.style.opacity = opacity.toFixed(3);
-        el.style.transform = `translate3d(0,${y.toFixed(2)}px,0) scale(${scale.toFixed(4)})`;
-        el.style.pointerEvents = t > 0.08 && t < 0.9 ? "auto" : "none";
-        el.dataset.live = t > 0.14 && t < 0.86 ? "1" : "0";
+        el.style.transform = `translate3d(0,${((1 - inT) * 60 - outT * 60).toFixed(2)}px,0) scale(${(1 - outT * 0.03).toFixed(4)})`;
+        el.style.pointerEvents = t > 0.05 && t < 0.92 ? "auto" : "none";
+        el.dataset.live = t > 0.12 && (t < 0.9 || i === BEATS.length - 1) ? "1" : "0";
+
+        /* line-by-line reveals: each [data-reveal] child waits 4.5% behind the
+           previous one, so long copy arrives as a wave instead of a block */
+        const reveals = revealEls.current[i] ?? [];
+        /* the hero plays on arrival, so it is already lit before the first scroll */
+        const local = i === 0 ? Math.max(t, intro) : t;
+        reveals.forEach((node, j) => {
+          const rt = easeOut(clamp((local - 0.1 - j * 0.045) / 0.24));
+          node.style.opacity = rt.toFixed(3);
+          node.style.transform = `translate3d(0,${((1 - rt) * 30).toFixed(2)}px,0)`;
+        });
+
+        /* runway numbers count up while the beat settles */
+        if (i === 3) {
+          const cp = easeOut(clamp((t - 0.16) / 0.5));
+          countEls.current.forEach((node) => {
+            const to = Number(node.dataset.count ?? 0);
+            const suffix = node.dataset.suffix ?? "";
+            const shown = Math.round(to * cp);
+            node.textContent = `${shown}${suffix}`;
+          });
+        }
+
+        /* orbit: map drifts and pins ignite one after another */
+        if (i === 4) {
+          if (worldEl.current) {
+            worldEl.current.style.transform = `scale(${(0.94 + easeOut(t) * 0.08).toFixed(4)}) translateY(${((1 - easeOut(t)) * 18).toFixed(1)}px)`;
+          }
+          let lit = 0;
+          pinEls.current.forEach((pin, j) => {
+            if (!pin) return;
+            const start = 0.12 + (j / Math.max(1, PINS.length)) * 0.62;
+            const pt = easeOut(clamp((t - start) / 0.1));
+            if (pt > 0.15) lit += 1;
+            pin.style.opacity = pt.toFixed(3);
+            pin.style.transform = `translateY(${((1 - pt) * 8).toFixed(2)}px) scale(${(0.7 + pt * 0.3).toFixed(3)})`;
+          });
+          if (countEl.current) countEl.current.textContent = String(lit);
+        }
       });
 
       if (activeBeat !== lastBeat) {
@@ -154,63 +217,10 @@ export function CareersJourney() {
         setLiveBeat(activeBeat);
       }
 
-      /* hero parallax: drift the glow with scroll */
       if (stage.current) {
-        const heroT = clamp(locals[0]);
-        stage.current.style.setProperty("--scroll-y", `${(heroT * 120).toFixed(1)}px`);
+        stage.current.style.setProperty("--scroll-y", `${(clamp(locals[0]) * 120).toFixed(1)}px`);
       }
 
-      /* mission stats: count up while the beat is live */
-      const missionT = clamp(locals[1]);
-      const statProgress = easeOut(clamp((missionT - 0.18) / 0.45));
-      statEls.current.forEach((el, i) => {
-        if (!el) return;
-        el.style.opacity = clamp(statProgress * 1.4 - i * 0.12).toFixed(3);
-        el.style.transform = `translateY(${((1 - statProgress) * 18).toFixed(1)}px)`;
-      });
-
-      /* world: map drift + pins igniting one by one */
-      const worldT = clamp(locals[2]);
-      if (worldEl.current) {
-        worldEl.current.style.transform = `scale(${(0.96 + easeOut(worldT) * 0.06).toFixed(4)}) translateY(${((1 - easeOut(worldT)) * 16).toFixed(1)}px)`;
-      }
-      let lit = 0;
-      pinEls.current.forEach((el, i) => {
-        if (!el) return;
-        const start = 0.14 + (i / Math.max(1, PINS.length)) * 0.62;
-        const t = easeOut(clamp((worldT - start) / 0.1));
-        if (t > 0.15) lit += 1;
-        el.style.opacity = t.toFixed(3);
-        el.style.transform = `translateY(${((1 - t) * 8).toFixed(2)}px) scale(${(0.7 + t * 0.3).toFixed(3)})`;
-      });
-      if (countEl.current) countEl.current.textContent = String(lit);
-
-      /* values: staggered deck */
-      const valuesT = clamp(locals[3]);
-      valueEls.current.forEach((el, i) => {
-        if (!el) return;
-        const t = easeOut(clamp((valuesT - 0.1 - i * 0.075) / 0.16));
-        el.style.opacity = t.toFixed(3);
-        el.style.transform = `translateY(${((1 - t) * 24).toFixed(2)}px)`;
-      });
-
-      /* roles: rows rising */
-      const rolesT = clamp(locals[4]);
-      roleEls.current.forEach((el, i) => {
-        if (!el) return;
-        const t = easeOut(clamp((rolesT - 0.12 - i * 0.06) / 0.18));
-        el.style.opacity = t.toFixed(3);
-        el.style.transform = `translateY(${((1 - t) * 20).toFixed(2)}px)`;
-      });
-
-      /* finale panel */
-      if (finaleEl.current) {
-        const t = easeOut(clamp((clamp(locals[5]) - 0.08) / 0.4));
-        finaleEl.current.style.opacity = t.toFixed(3);
-        finaleEl.current.style.transform = `translateY(${((1 - t) * 34).toFixed(2)}px) scale(${(0.98 + t * 0.02).toFixed(4)})`;
-      }
-
-      /* rail */
       railEls.current.forEach((el, i) => {
         if (!el) return;
         el.dataset.active = String(i === activeBeat);
@@ -222,13 +232,16 @@ export function CareersJourney() {
        identical instead of the animation running faster on a ProMotion phone */
     let running = false;
     let last = performance.now();
+    const born = performance.now();
+    let intro = 0;
 
     const tick = () => {
       const now = performance.now();
       const dt = Math.min(0.1, Math.max(0.001, (now - last) / 1000));
       last = now;
       const delta = target - current;
-      if (Math.abs(delta) > 0.0002) {
+      intro = Math.min(1, (now - born) / 1100);
+      if (Math.abs(delta) > 0.0002 || intro < 1) {
         current = current < 0 ? target : current + delta * (1 - Math.exp(-8.5 * dt));
         apply(clamp(current));
         raf = requestAnimationFrame(tick);
@@ -255,6 +268,7 @@ export function CareersJourney() {
     read();
     current = target;
     apply(current);
+    kick();
 
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
@@ -285,7 +299,7 @@ export function CareersJourney() {
     const wrapEl = wrap.current;
     if (!wrapEl) return;
     const total = wrapEl.offsetHeight - window.innerHeight;
-    const y = wrapEl.offsetTop + BEATS[i].from * total + total * 0.04;
+    const y = wrapEl.offsetTop + i * SPAN * total + total * 0.02;
     window.scrollTo({ top: y, behavior: "smooth" });
   };
 
@@ -300,21 +314,30 @@ export function CareersJourney() {
 
         {/* 01 · hero */}
         <div ref={(el) => { beatEls.current[0] = el; }} className={s.beat}>
-          <p className={s.kicker}>Careers · First light</p>
+          <p className={s.kicker} data-reveal>
+            Careers · First light
+          </p>
           <h1 className={s.h1}>
-            {words.map((w, i) => (
-              <span key={w + i}>
-                <span className={s.word} style={{ ["--i" as string]: i }}>
-                  {w === "open" || w === "here." ? <span className={s.accent}>{w}</span> : w}
-                </span>
-                {i < words.length - 1 ? " " : null}
+            {heroLines.map((line, i) => (
+              <span
+                key={i}
+                className={`${s.heroLine} ${i === 2 ? s.heroLineStrong : ""}`}
+                data-reveal
+              >
+                {line}
               </span>
             ))}
           </h1>
-          <p className={s.lede}>
+          <p className={s.lede} data-reveal>
             Visas on time, for every person on Earth. Scroll to walk the journey, or jump straight to the open roles.
           </p>
-          <button type="button" className={s.skip} style={{ position: "static", marginTop: "1.5rem", alignSelf: "flex-start" }} onClick={() => jumpTo(4)}>
+          <button
+            type="button"
+            className={s.skip}
+            data-reveal
+            style={{ position: "static", marginTop: "1.5rem", alignSelf: "flex-start" }}
+            onClick={() => jumpTo(6)}
+          >
             View open roles ↓
           </button>
           <div className={s.hint}>
@@ -325,35 +348,53 @@ export function CareersJourney() {
 
         {/* 02 · mission */}
         <div ref={(el) => { beatEls.current[1] = el; }} className={s.beat}>
-          <p className={s.kicker}>Our mission</p>
-          <h2 className={s.h2}>
+          <p className={s.kicker} data-reveal>
+            Our mission
+          </p>
+          <h2 className={s.h2} data-reveal>
             Enable every person on Earth to <span className={s.em}>travel freely</span>.
           </h2>
-          <p className={s.lede}>
-            We’re building an AI-first platform that makes travel simpler and seamless, starting with visas that arrive on
-            time. Took off in 2021, still small enough that your work is visible.
+          <p className={s.lede} data-reveal>
+            We’re building an AI-first platform that makes travel simpler and seamless, starting with visas that arrive
+            on time.
           </p>
-          <div className={s.stats}>
-            {STATS.map(([v, k], i) => (
-              <div
-                key={k}
-                className={s.stat}
-                ref={(el) => { statEls.current[i] = el; }}
-                style={{ opacity: 0 }}
-              >
-                <b>{v}</b>
-                <span>{k}</span>
+        </div>
+
+        {/* 03 · story */}
+        <div ref={(el) => { beatEls.current[2] = el; }} className={s.beat}>
+          <p className={s.kicker} data-reveal>
+            2021 · Dhaka
+          </p>
+          <h2 className={s.h2} data-reveal>
+            Took off in <span className={s.em}>2021</span>.
+          </h2>
+          <p className={s.lede} data-reveal>
+            Small enough that your work is visible, fast enough that it ships. If you want a blank page and a real
+            deadline, this is the place.
+          </p>
+        </div>
+
+        {/* 04 · runway numbers */}
+        <div ref={(el) => { beatEls.current[3] = el; }} className={`${s.beat} ${s.beatWide}`}>
+          <div className={s.runwayRow}>
+            {RUNWAY.map(([value, suffix, label], i) => (
+              <div key={label} className={s.runwayStat} data-reveal>
+                <b data-count={value} data-suffix={suffix} style={{ ["--i" as string]: i }}>
+                  {value}
+                  {suffix}
+                </b>
+                <span>{label}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* 03 · world */}
-        <div ref={(el) => { beatEls.current[2] = el; }} className={s.beat}>
-          <h2 className={s.h2} style={{ textAlign: "center", margin: "0 auto", maxWidth: "24ch" }}>
+        {/* 05 · orbit */}
+        <div ref={(el) => { beatEls.current[4] = el; }} className={s.beat}>
+          <h2 className={s.h2} data-reveal style={{ textAlign: "center", margin: "0 auto", maxWidth: "24ch" }}>
             Making the world a <span className={s.em}>smaller</span> place.
           </h2>
-          <div ref={worldEl} className={s.worldWrap}>
+          <div ref={worldEl} className={s.worldWrap} data-reveal>
             <svg className={s.worldSvg} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="World map with destinations">
               {WORLD_PATHS.map(([name, d]) => (
                 <path key={name} d={d} className={s.land} />
@@ -381,16 +422,24 @@ export function CareersJourney() {
               <span ref={countEl}>0</span> of {PINS.length} destinations · 45+ served
             </p>
           </div>
+          <div className={s.orbitRow}>
+            {ORBIT.map(([v, k]) => (
+              <div key={k} className={s.orbitStat} data-reveal>
+                <b>{v}</b>
+                <span>{k}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* 04 · values */}
-        <div ref={(el) => { beatEls.current[3] = el; }} className={s.beat}>
-          <h2 className={s.h2}>
+        {/* 06 · values */}
+        <div ref={(el) => { beatEls.current[5] = el; }} className={`${s.beat} ${s.beatWide}`}>
+          <h2 className={s.h2} data-reveal>
             The five things we <span className={s.em}>actually</span> mean.
           </h2>
           <div className={s.values}>
             {VALUES.map(([t, d], i) => (
-              <div key={t} className={s.valueRow} ref={(el) => { valueEls.current[i] = el; }}>
+              <div key={t} className={s.valueRow} data-reveal>
                 <span className={s.valueNum}>0{i + 1}</span>
                 <h3>{t}</h3>
                 <p>{d}</p>
@@ -399,79 +448,67 @@ export function CareersJourney() {
           </div>
         </div>
 
-        {/* 05 · roles */}
-        <div ref={(el) => { beatEls.current[4] = el; }} className={s.beat}>
-          <h2 className={s.h2}>
-            Not <span className={s.em}>for everyone</span>.
-          </h2>
-          <p className={s.lede}>
-            But probably for you, if you’ve read this far. Fast, unglamorous, and mostly unmapped. If that reads like a
-            warning, good. If it reads like an invitation, take the lift.
-          </p>
-          <div className={s.roleList}>
-            {ROLES.map(([title, team, loc], i) => (
-              <a
-                key={title}
-                href={`mailto:careers@nspacevisa.com?subject=${encodeURIComponent("Application: " + title)}`}
-                className={s.roleRow}
-                ref={(el) => { roleEls.current[i] = el; }}
-              >
-                <b>{title}</b>
-                <em>
-                  {team} · {loc}
-                </em>
-                <Arrow />
-              </a>
-            ))}
-            <div className={s.depts}>
+        {/* 07 · finale */}
+        <div ref={(el) => { beatEls.current[6] = el; }} className={`${s.beat} ${s.beatWide}`}>
+          <div className={s.finale}>
+            <h2 data-reveal>
+              Not <span className={s.em}>for everyone</span>.
+            </h2>
+            <p data-reveal>
+              But probably for you, if you’ve read this far. Fast, unglamorous, and mostly unmapped. If that reads like
+              a warning, good. If it reads like an invitation, take the lift.
+            </p>
+            <div className={s.roleList}>
+              {ROLES.map(([title, team, loc]) => (
+                <a
+                  key={title}
+                  href={`mailto:careers@nspacevisa.com?subject=${encodeURIComponent("Application: " + title)}`}
+                  className={s.roleRow}
+                  data-reveal
+                >
+                  <b>{title}</b>
+                  <em>
+                    {team} · {loc}
+                  </em>
+                  <Arrow />
+                </a>
+              ))}
+            </div>
+            <div className={s.depts} data-reveal>
               {DEPTS.map(([name, n]) => (
                 <span key={name} className={s.dept}>
                   {name} <b>{n}</b>
                 </span>
               ))}
             </div>
-          </div>
-        </div>
-
-        {/* 06 · finale */}
-        <div ref={(el) => { beatEls.current[5] = el; }} className={s.beat}>
-          <div ref={finaleEl} className={s.finale}>
-            <h2>
-              Take the <span className={s.em}>lift</span>.
-            </h2>
-            <p>
-              Send one email: what you’ve shipped, what you want to own next. A human reads every application, usually
-              within two days.
-            </p>
-            <a className={s.lift} href="mailto:careers@nspacevisa.com?subject=Careers%20at%20Nspace">
+            <a
+              className={s.lift}
+              data-reveal
+              href="mailto:careers@nspacevisa.com?subject=Careers%20at%20Nspace"
+            >
               careers@nspacevisa.com <Arrow />
             </a>
-            <p className={s.meta}>
+            <p className={s.meta} data-reveal>
               Visas on time. © 2026 Nspace Visa Agency. <a href="/">Back to the site</a>
             </p>
           </div>
         </div>
 
-        {/* rail */}
+        {/* progress rail */}
         <div className={s.rail} aria-hidden>
           {BEATS.map((b, i) => (
             <div
               key={b.key}
-              className={s.railItem}
               ref={(el) => { railEls.current[i] = el; }}
+              className={s.railItem}
               data-active={i === liveBeat}
+              onClick={() => jumpTo(i)}
             >
-              <span>{b.label}</span>
               <i />
+              <span>{b.label}</span>
             </div>
           ))}
         </div>
-
-        {!isStatic && (
-          <button type="button" className={s.skip} onClick={() => setIsStatic(true)}>
-            Read as a page
-          </button>
-        )}
       </div>
     </div>
   );
