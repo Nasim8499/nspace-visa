@@ -1,7 +1,7 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { and, eq, gt } from "drizzle-orm";
-import { db } from "@/db";
+import { db, isDbConfigured } from "@/db";
 import { sessions, users } from "@/db/schema";
 
 const COOKIE = "nspace_session";
@@ -50,10 +50,13 @@ export async function destroySession() {
 export type SafeUser = Omit<typeof users.$inferSelect, "passwordHash">;
 
 export async function getCurrentUser(): Promise<SafeUser | null> {
+  /* without a database there are no sessions to read; the site stays usable */
+  if (!isDbConfigured()) return null;
   const jar = await cookies();
   const token = jar.get(COOKIE)?.value;
   if (!token) return null;
-  const rows = await db
+  try {
+    const rows = await db
     .select({
       id: users.id,
       name: users.name,
@@ -69,6 +72,9 @@ export async function getCurrentUser(): Promise<SafeUser | null> {
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
     .where(and(eq(sessions.tokenHash, sha(token)), gt(sessions.expiresAt, new Date())))
-    .limit(1);
-  return rows[0] ?? null;
+      .limit(1);
+    return rows[0] ?? null;
+  } catch {
+    return null;
+  }
 }

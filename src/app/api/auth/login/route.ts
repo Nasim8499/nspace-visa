@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import { db } from "@/db";
+import { db, isDbConfigured } from "@/db";
 import { users } from "@/db/schema";
 import { createSession, verifyPassword } from "@/lib/auth";
 
 export async function POST(req: Request) {
+  if (!isDbConfigured()) {
+    return NextResponse.json(
+      { error: "Accounts open as soon as the database is connected. Browse destinations meanwhile." },
+      { status: 503 },
+    );
+  }
   const body = await req.json().catch(() => null);
   const email = String(body?.email ?? "").trim().toLowerCase();
   const password = String(body?.password ?? "");
